@@ -2,11 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+// NOTE: 一時的な診断用に本番でも開けています。確認後は必ずアクセス不可に戻してください。
 export async function GET(request: NextRequest) {
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
-  }
-
   return NextResponse.json({
     env: {
       GOOGLE_CLIENT_ID: Boolean(process.env.GOOGLE_CLIENT_ID),

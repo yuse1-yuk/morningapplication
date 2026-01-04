@@ -16,7 +16,7 @@ type Article = {
 
 export async function GET() {
   try {
-    const keywords = listKeywords();
+    const keywords = await listKeywords();
     if (keywords.length === 0) {
       return NextResponse.json({
         articles: [],

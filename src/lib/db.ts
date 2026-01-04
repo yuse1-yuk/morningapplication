@@ -1,31 +1,42 @@
-import Database from "better-sqlite3";
-import * as fs from "node:fs";
-import * as path from "node:path";
+import { Pool } from "pg";
 
-const dataDir = process.cwd();
-const dbPath = path.join(dataDir, "data.sqlite");
+const databaseUrl = process.env.NEON_DATABASE_URL ?? process.env.DATABASE_URL;
 
-if (!fs.existsSync(dbPath)) {
-  fs.writeFileSync(dbPath, "");
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL is not set");
 }
 
-const db = new Database(dbPath);
-db.pragma("journal_mode = WAL");
+// Reuse the pool across hot reloads in dev
+const globalForDb = globalThis as unknown as { pgPool?: Pool };
+const pool =
+  globalForDb.pgPool ??
+  new Pool({
+    connectionString: databaseUrl,
+    ssl: { rejectUnauthorized: false },
+  });
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS todos (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  text TEXT NOT NULL,
-  target_date TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+if (!globalForDb.pgPool) {
+  globalForDb.pgPool = pool;
+}
 
-CREATE TABLE IF NOT EXISTS news_keywords (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  keyword TEXT NOT NULL UNIQUE,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-`);
+const ready = runMigrations();
+
+async function runMigrations() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS todos (
+      id SERIAL PRIMARY KEY,
+      text TEXT NOT NULL,
+      target_date DATE NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS news_keywords (
+      id SERIAL PRIMARY KEY,
+      keyword TEXT NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+}
 
 export type TodoRecord = {
   id: number;
@@ -40,56 +51,113 @@ export type KeywordRecord = {
   created_at: string;
 };
 
-export function listTodos(fromDate: string): TodoRecord[] {
-  const stmt = db.prepare(
-    "SELECT * FROM todos WHERE date(target_date) >= date(?) ORDER BY date(target_date), id"
-  );
-  return stmt.all(fromDate) as TodoRecord[];
+function toDateString(date: Date | string | null | undefined) {
+  if (!date) return "";
+  if (date instanceof Date) return date.toISOString().slice(0, 10);
+  return date.toString().slice(0, 10);
 }
 
-export function listTodosByDate(date: string): TodoRecord[] {
-  const stmt = db.prepare(
-    "SELECT * FROM todos WHERE date(target_date) = date(?) ORDER BY id"
+export async function listTodos(fromDate: string): Promise<TodoRecord[]> {
+  await ready;
+  const { rows } = await pool.query(
+    `SELECT id, text, target_date, created_at
+     FROM todos
+     WHERE target_date >= $1::date
+     ORDER BY target_date, id`,
+    [fromDate]
   );
-  return stmt.all(date) as TodoRecord[];
+  return rows.map((row: any) => ({
+    id: row.id,
+    text: row.text,
+    target_date: toDateString(row.target_date),
+    created_at: row.created_at?.toISOString?.() ?? row.created_at,
+  }));
 }
 
-export function addTodo(text: string, targetDate: string): TodoRecord {
-  const stmt = db.prepare(
-    "INSERT INTO todos (text, target_date) VALUES (?, ?)"
+export async function listTodosByDate(date: string): Promise<TodoRecord[]> {
+  await ready;
+  const { rows } = await pool.query(
+    `SELECT id, text, target_date, created_at
+     FROM todos
+     WHERE target_date = $1::date
+     ORDER BY id`,
+    [date]
   );
-  const info = stmt.run(text, targetDate);
+  return rows.map((row: any) => ({
+    id: row.id,
+    text: row.text,
+    target_date: toDateString(row.target_date),
+    created_at: row.created_at?.toISOString?.() ?? row.created_at,
+  }));
+}
+
+export async function addTodo(
+  text: string,
+  targetDate: string
+): Promise<TodoRecord> {
+  await ready;
+  const { rows } = await pool.query(
+    `INSERT INTO todos (text, target_date)
+     VALUES ($1, $2::date)
+     RETURNING id, text, target_date, created_at`,
+    [text, targetDate]
+  );
+  const row = rows[0] as any;
   return {
-    id: Number(info.lastInsertRowid),
-    text,
-    target_date: targetDate,
-    created_at: new Date().toISOString(),
+    id: row.id,
+    text: row.text,
+    target_date: toDateString(row.target_date),
+    created_at: row.created_at?.toISOString?.() ?? row.created_at,
   };
 }
 
-export function deleteTodo(id: number) {
-  const stmt = db.prepare("DELETE FROM todos WHERE id = ?");
-  stmt.run(id);
+export async function deleteTodo(id: number): Promise<void> {
+  await ready;
+  await pool.query(`DELETE FROM todos WHERE id = $1`, [id]);
 }
 
-export function listKeywords(): KeywordRecord[] {
-  const stmt = db.prepare(
-    "SELECT * FROM news_keywords ORDER BY created_at DESC LIMIT 50"
+export async function listKeywords(): Promise<KeywordRecord[]> {
+  await ready;
+  const { rows } = await pool.query(
+    `SELECT id, keyword, created_at
+     FROM news_keywords
+     ORDER BY created_at DESC
+     LIMIT 50`
   );
-  return stmt.all() as KeywordRecord[];
+  return rows.map((row: any) => ({
+    id: row.id,
+    keyword: row.keyword,
+    created_at: row.created_at?.toISOString?.() ?? row.created_at,
+  }));
 }
 
-export function addKeyword(keyword: string): KeywordRecord {
-  const stmt = db.prepare("INSERT INTO news_keywords (keyword) VALUES (?)");
-  const info = stmt.run(keyword);
+export async function addKeyword(keyword: string): Promise<KeywordRecord> {
+  await ready;
+  const { rows } = await pool.query(
+    `INSERT INTO news_keywords (keyword)
+     VALUES ($1)
+     ON CONFLICT (keyword) DO NOTHING
+     RETURNING id, keyword, created_at`,
+    [keyword]
+  );
+
+  const row =
+    (rows[0] as any) ??
+    (
+      await pool.query(
+        `SELECT id, keyword, created_at FROM news_keywords WHERE keyword = $1`,
+        [keyword]
+      )
+    ).rows[0];
+
   return {
-    id: Number(info.lastInsertRowid),
-    keyword,
-    created_at: new Date().toISOString(),
+    id: row.id,
+    keyword: row.keyword,
+    created_at: row.created_at?.toISOString?.() ?? row.created_at,
   };
 }
 
-export function deleteKeyword(id: number) {
-  const stmt = db.prepare("DELETE FROM news_keywords WHERE id = ?");
-  stmt.run(id);
+export async function deleteKeyword(id: number): Promise<void> {
+  await ready;
+  await pool.query(`DELETE FROM news_keywords WHERE id = $1`, [id]);
 }

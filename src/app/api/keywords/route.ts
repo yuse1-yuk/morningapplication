@@ -4,7 +4,7 @@ import { addKeyword, deleteKeyword, listKeywords } from "@/lib/db";
 
 export async function GET() {
   try {
-    const keywords = listKeywords();
+    const keywords = await listKeywords();
     return NextResponse.json({ keywords });
   } catch (error) {
     console.error(error);
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     if (!keyword) {
       return NextResponse.json({ error: "invalid_keyword" }, { status: 400 });
     }
-    const row = addKeyword(keyword);
+    const row = await addKeyword(keyword);
     return NextResponse.json({ keyword: row });
   } catch (error) {
     console.error(error);
@@ -34,7 +34,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "id_required" }, { status: 400 });
   }
   try {
-    deleteKeyword(id);
+    await deleteKeyword(id);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error(error);

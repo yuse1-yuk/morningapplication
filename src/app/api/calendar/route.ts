@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createOAuthClient, parseTokens } from "@/lib/google";
 
+export const runtime = "nodejs";
+
 export async function GET(request: NextRequest) {
   const rawTokens = request.cookies.get("g_tokens")?.value;
   const tokens = parseTokens(rawTokens);

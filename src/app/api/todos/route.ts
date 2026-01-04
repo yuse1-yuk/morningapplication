@@ -15,11 +15,11 @@ export async function GET(request: NextRequest) {
 
   try {
     if (dateParam === "today") {
-      const rows = listTodosByDate(today);
+      const rows = await listTodosByDate(today);
       return NextResponse.json({ todos: rows });
     }
     const from = dateParam ?? today;
-    const rows = listTodos(from);
+    const rows = await listTodos(from);
     return NextResponse.json({ todos: rows });
   } catch (error) {
     console.error(error);
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     if (!text || !targetDate) {
       return NextResponse.json({ error: "invalid_body" }, { status: 400 });
     }
-    const row = addTodo(text, targetDate);
+    const row = await addTodo(text, targetDate);
     return NextResponse.json({ todo: row });
   } catch (error) {
     console.error(error);
@@ -50,7 +50,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "id_required" }, { status: 400 });
   }
   try {
-    deleteTodo(id);
+    await deleteTodo(id);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error(error);

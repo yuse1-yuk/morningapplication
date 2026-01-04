@@ -5,6 +5,7 @@
 1. 依存インストール: `npm install`
 2. 環境変数: `.env.example` をコピーして `.env.local` を作成し、キーを埋める  
    - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI`: カレンダーOAuth  
+   - `DATABASE_URL`（または `NEON_DATABASE_URL`）: Postgres の接続文字列  
    - `NEWS_API_KEY`: NewsAPI.org の API キー（任意：Google News RSSが0件のときのフォールバック）  
    - `WEATHER_DEFAULT_LAT` / `WEATHER_DEFAULT_LON`: 位置情報拒否時の緯度・経度（デフォルト東京）  
    - `NEXT_TELEMETRY_DISABLED=1`: Telemetry無効化（任意）

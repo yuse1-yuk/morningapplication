@@ -20,7 +20,7 @@ export default function Home() {
         <header className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div className="space-y-1">
             <p className="text-xs uppercase tracking-[0.24em] text-white/70">
-              Morning Brief
+              StartAM
             </p>
             <h1 className="text-3xl font-semibold text-white sm:text-4xl">
               おはようございます

@@ -14,14 +14,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Morning Brief",
+  title: "StartAM",
   description: "朝イチで天気と予定をまとめて見るシンプルなダッシュボード",
-  applicationName: "Morning Brief",
+  applicationName: "StartAM",
   themeColor: "#0d1017",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Morning Brief",
+    title: "StartAM",
   },
 };
 

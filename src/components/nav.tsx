@@ -13,7 +13,7 @@ export function NavBar() {
   const pathname = usePathname();
   return (
     <nav className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-white/90 shadow-lg backdrop-blur-xl">
-      <div className="text-lg font-semibold">Morning Brief</div>
+      <div className="text-lg font-semibold">StartAM</div>
       <div className="flex items-center gap-2 text-sm">
         {links.map((link) => {
           const active = pathname === link.href;

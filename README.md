@@ -1,4 +1,4 @@
-# Morning Brief
+# StartAM
 朝起きてすぐ、天気・今日のToDo・Googleカレンダー予定・ニュース(Gemini要約)をまとめて確認できるダッシュボード。Next.js + App Router + Tailwind v4 + SQLite (better-sqlite3)。
 
 ## 実行手順

@@ -2,26 +2,31 @@ import { Pool } from "pg";
 
 const databaseUrl = process.env.NEON_DATABASE_URL ?? process.env.DATABASE_URL;
 
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is not set");
-}
-
-// Reuse the pool across hot reloads in dev
+// Lazily create pool so build does not crash when env is unset (e.g., local build without DB).
 const globalForDb = globalThis as unknown as { pgPool?: Pool };
-const pool =
-  globalForDb.pgPool ??
-  new Pool({
-    connectionString: databaseUrl,
-    ssl: { rejectUnauthorized: false },
-  });
-
-if (!globalForDb.pgPool) {
-  globalForDb.pgPool = pool;
+function getPool(): Pool {
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL is not set");
+  }
+  if (!globalForDb.pgPool) {
+    globalForDb.pgPool = new Pool({
+      connectionString: databaseUrl,
+      ssl: { rejectUnauthorized: false },
+    });
+  }
+  return globalForDb.pgPool;
 }
 
-const ready = runMigrations();
+let readyPromise: Promise<void> | null = null;
+function ready() {
+  if (!readyPromise) {
+    readyPromise = runMigrations();
+  }
+  return readyPromise;
+}
 
 async function runMigrations() {
+  const pool = getPool();
   await pool.query(`
     CREATE TABLE IF NOT EXISTS todos (
       id SERIAL PRIMARY KEY,
@@ -71,7 +76,8 @@ export async function listTodos(
   userEmail: string,
   fromDate: string
 ): Promise<TodoRecord[]> {
-  await ready;
+  await ready();
+  const pool = getPool();
   const { rows } = await pool.query<{
     id: number;
     text: string;
@@ -96,7 +102,8 @@ export async function listTodosByDate(
   userEmail: string,
   date: string
 ): Promise<TodoRecord[]> {
-  await ready;
+  await ready();
+  const pool = getPool();
   const { rows } = await pool.query<{
     id: number;
     text: string;
@@ -122,7 +129,8 @@ export async function addTodo(
   text: string,
   targetDate: string
 ): Promise<TodoRecord> {
-  await ready;
+  await ready();
+  const pool = getPool();
   const { rows } = await pool.query<{
     id: number;
     text: string;
@@ -147,7 +155,8 @@ export async function deleteTodo(
   userEmail: string,
   id: number
 ): Promise<void> {
-  await ready;
+  await ready();
+  const pool = getPool();
   await pool.query(`DELETE FROM todos WHERE id = $1 AND user_email = $2`, [
     id,
     userEmail,
@@ -157,7 +166,8 @@ export async function deleteTodo(
 export async function listKeywords(
   userEmail: string
 ): Promise<KeywordRecord[]> {
-  await ready;
+  await ready();
+  const pool = getPool();
   const { rows } = await pool.query<{
     id: number;
     keyword: string;
@@ -181,7 +191,8 @@ export async function addKeyword(
   userEmail: string,
   keyword: string
 ): Promise<KeywordRecord> {
-  await ready;
+  await ready();
+  const pool = getPool();
   const { rows } = await pool.query<{
     id: number;
     keyword: string;
@@ -218,7 +229,8 @@ export async function deleteKeyword(
   userEmail: string,
   id: number
 ): Promise<void> {
-  await ready;
+  await ready();
+  const pool = getPool();
   await pool.query(
     `DELETE FROM news_keywords WHERE id = $1 AND user_email = $2`,
     [id, userEmail]

@@ -29,7 +29,9 @@ export function NewsCard() {
         setStatus("ready");
       } catch (err) {
         console.error(err);
-        setError("ニュースの取得に失敗しました。設定でキーワードを確認してください。");
+        setError(
+          "ニュースの取得に失敗しました。キーワード設定やAPIキーを確認してください。"
+        );
         setStatus("error");
       }
     };
@@ -52,7 +54,11 @@ export function NewsCard() {
       )}
       {status === "ready" && (
         <>
-          {note && <p className="text-sm text-white/70">{note}</p>}
+          {note && (
+            <p className="text-sm text-white/70">
+              {note || "キーワードを設定してください。"}
+            </p>
+          )}
           <div className="mt-4 space-y-2">
             {articles.map((a, idx) => (
               <article

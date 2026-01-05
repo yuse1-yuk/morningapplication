@@ -11,13 +11,24 @@ export function TodoForm() {
   const [targetDate, setTargetDate] = useState("");
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
-    const res = await fetch("/api/todos", { cache: "no-store" });
-    const data = await res.json();
-    setTodos(data.todos ?? []);
-    setLoading(false);
+    setError(null);
+    try {
+      const res = await fetch("/api/todos", { cache: "no-store" });
+      if (!res.ok) throw new Error("failed");
+      const data = await res.json();
+      setTodos(data.todos ?? []);
+    } catch (err) {
+      console.error(err);
+      setError("タスクの取得に失敗しました。");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -29,13 +40,25 @@ export function TodoForm() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
-    await fetch("/api/todos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, target_date: targetDate }),
-    });
-    setText("");
-    load();
+    setSaving(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/todos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, target_date: targetDate }),
+      });
+      if (!res.ok) throw new Error("failed");
+      setText("");
+      setMessage("保存しました");
+      load();
+    } catch (err) {
+      console.error(err);
+      setError("保存に失敗しました。");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const remove = async (id: number) => {
@@ -49,7 +72,11 @@ export function TodoForm() {
         onSubmit={submit}
         className="rounded-3xl border border-white/10 bg-white/10 p-5 text-white shadow-xl backdrop-blur-xl"
       >
-        <h2 className="text-lg font-semibold">明日のタスクを追加</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">明日のタスクを追加</h2>
+          {message && <p className="text-xs text-emerald-200">{message}</p>}
+          {error && <p className="text-xs text-red-200">{error}</p>}
+        </div>
         <p className="text-sm text-white/70">デフォルトは翌日の日付です。</p>
         <div className="mt-3 space-y-3">
           <input
@@ -67,8 +94,9 @@ export function TodoForm() {
           <button
             type="submit"
             className="w-full rounded-2xl bg-white py-3 text-sm font-semibold text-slate-900 shadow-md transition hover:-translate-y-0.5 hover:shadow-lg"
+            disabled={saving}
           >
-            追加
+            {saving ? "保存中..." : "追加"}
           </button>
         </div>
       </form>
@@ -79,6 +107,7 @@ export function TodoForm() {
         {!loading && todos.length === 0 && (
           <p className="text-sm text-white/70">登録されたタスクはありません。</p>
         )}
+        {error && <p className="text-sm text-red-200 mt-2">{error}</p>}
         <ul className="mt-3 space-y-2">
           {todos.map((todo) => (
             <li

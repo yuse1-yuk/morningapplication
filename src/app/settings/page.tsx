@@ -1,5 +1,6 @@
 import { NavBar } from "@/components/nav";
 import { NewsKeywordsForm } from "@/components/news-keywords-form";
+import { LogoutButton } from "@/components/logout-button";
 
 export default function SettingsPage() {
   return (
@@ -16,6 +17,9 @@ export default function SettingsPage() {
           </p>
         </header>
         <NewsKeywordsForm />
+        <div className="flex justify-end">
+          <LogoutButton />
+        </div>
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
           <p className="font-semibold text-white">環境変数（サーバー再起動後に反映）</p>
           <ul className="mt-2 space-y-1">

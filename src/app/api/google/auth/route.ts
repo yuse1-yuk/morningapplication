@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
     }
 
     const existingTokens = parseTokens(request.cookies.get("g_tokens")?.value);
-    if (existingTokens) {
+    const hasEmail = Boolean(request.cookies.get("g_user_email")?.value);
+    if (existingTokens && hasEmail) {
       return NextResponse.redirect(new URL("/", request.url));
     }
 

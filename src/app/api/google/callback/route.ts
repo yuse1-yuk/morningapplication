@@ -21,7 +21,12 @@ export async function GET(request: NextRequest) {
 
     // 追加: ユーザー情報を取得し、メールアドレスを保存
     let userEmail: string | undefined;
-    if (tokens.access_token) {
+    // 1) id_token から email を取り出す（最速）
+    if (!userEmail && tokens.id_token) {
+      userEmail = extractEmailFromIdToken(tokens.id_token);
+    }
+    // 2) access_token で userinfo API を呼ぶ（fallback）
+    if (!userEmail && tokens.access_token) {
       try {
         const userInfoRes = await fetch(
           "https://www.googleapis.com/oauth2/v2/userinfo",
@@ -66,5 +71,19 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error(error);
     return NextResponse.redirect(new URL("/?calendarAuth=failed", origin));
+  }
+}
+
+function extractEmailFromIdToken(idToken: string): string | undefined {
+  try {
+    const [, payload] = idToken.split(".");
+    if (!payload) return undefined;
+    const json = JSON.parse(
+      Buffer.from(payload.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8")
+    );
+    return json?.email as string | undefined;
+  } catch (err) {
+    console.error("id_token decode error", err);
+    return undefined;
   }
 }

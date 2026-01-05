@@ -16,6 +16,11 @@ export function NewsKeywordsForm() {
     const res = await fetch("/api/keywords", { cache: "no-store" });
     const data = await res.json();
     if (!res.ok) {
+      if (res.status === 401) {
+        setError("Google連携後に設定できます。");
+        setKeywords([]);
+        return;
+      }
       setError("読み込みに失敗しました");
       return;
     }
@@ -37,7 +42,9 @@ export function NewsKeywordsForm() {
       body: JSON.stringify({ keyword: input }),
     });
     if (!res.ok) {
-      setError("追加に失敗しました");
+      setError(
+        res.status === 401 ? "Google連携後に設定できます。" : "追加に失敗しました"
+      );
       return;
     }
     setInput("");

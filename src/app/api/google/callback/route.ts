@@ -19,6 +19,27 @@ export async function GET(request: NextRequest) {
     const existing = parseTokens(request.cookies.get("g_tokens")?.value) ?? {};
     const merged = { ...existing, ...tokens };
 
+    // 追加: ユーザー情報を取得し、メールアドレスを保存
+    let userEmail: string | undefined;
+    if (tokens.access_token) {
+      try {
+        const userInfoRes = await fetch(
+          "https://www.googleapis.com/oauth2/v2/userinfo",
+          {
+            headers: { Authorization: `Bearer ${tokens.access_token}` },
+          }
+        );
+        if (userInfoRes.ok) {
+          const profile = await userInfoRes.json();
+          userEmail = profile?.email;
+        } else {
+          console.error("Failed to fetch userinfo", await userInfoRes.text());
+        }
+      } catch (err) {
+        console.error("userinfo error", err);
+      }
+    }
+
     const response = NextResponse.redirect(new URL("/", origin));
     response.cookies.set({
       name: "g_tokens",
@@ -29,6 +50,17 @@ export async function GET(request: NextRequest) {
       path: "/",
       maxAge: 60 * 60 * 24 * 30,
     });
+    if (userEmail) {
+      response.cookies.set({
+        name: "g_user_email",
+        value: userEmail,
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+    }
 
     return response;
   } catch (error) {

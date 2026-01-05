@@ -9,17 +9,22 @@ import {
 } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
+  const userEmail = request.cookies.get("g_user_email")?.value;
+  if (!userEmail) {
+    return NextResponse.json({ error: "not_authenticated" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const dateParam = searchParams.get("date");
   const today = formatISO(startOfToday(), { representation: "date" });
 
   try {
     if (dateParam === "today") {
-      const rows = await listTodosByDate(today);
+      const rows = await listTodosByDate(userEmail, today);
       return NextResponse.json({ todos: rows });
     }
     const from = dateParam ?? today;
-    const rows = await listTodos(from);
+    const rows = await listTodos(userEmail, from);
     return NextResponse.json({ todos: rows });
   } catch (error) {
     console.error(error);
@@ -28,6 +33,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const userEmail = request.cookies.get("g_user_email")?.value;
+  if (!userEmail) {
+    return NextResponse.json({ error: "not_authenticated" }, { status: 401 });
+  }
   try {
     const body = await request.json();
     const text: string = body.text;
@@ -35,7 +44,7 @@ export async function POST(request: NextRequest) {
     if (!text || !targetDate) {
       return NextResponse.json({ error: "invalid_body" }, { status: 400 });
     }
-    const row = await addTodo(text, targetDate);
+    const row = await addTodo(userEmail, text, targetDate);
     return NextResponse.json({ todo: row });
   } catch (error) {
     console.error(error);
@@ -44,13 +53,17 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const userEmail = request.cookies.get("g_user_email")?.value;
+  if (!userEmail) {
+    return NextResponse.json({ error: "not_authenticated" }, { status: 401 });
+  }
   const { searchParams } = new URL(request.url);
   const id = Number(searchParams.get("id"));
   if (!id) {
     return NextResponse.json({ error: "id_required" }, { status: 400 });
   }
   try {
-    await deleteTodo(id);
+    await deleteTodo(userEmail, id);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error(error);

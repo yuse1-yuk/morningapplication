@@ -1,5 +1,5 @@
 import { formatISO, startOfToday, subDays } from "date-fns";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { listKeywords } from "@/lib/db";
 
@@ -14,9 +14,17 @@ type Article = {
   sourceUrl?: string;
 };
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const keywords = await listKeywords();
+    const userEmail = request.cookies.get("g_user_email")?.value;
+    if (!userEmail) {
+      return NextResponse.json(
+        { error: "not_authenticated" },
+        { status: 401 }
+      );
+    }
+
+    const keywords = await listKeywords(userEmail);
     if (keywords.length === 0) {
       return NextResponse.json({
         articles: [],

@@ -17,12 +17,18 @@ export function NewsCard() {
     "loading"
   );
   const [error, setError] = useState<string | null>(null);
+  const [authNeeded, setAuthNeeded] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       try {
         const res = await fetch("/api/news", { cache: "no-store" });
         const data = await res.json();
+        if (res.status === 401) {
+          setAuthNeeded(true);
+          setStatus("error");
+          return;
+        }
         if (!res.ok) throw new Error(data.error ?? "failed");
         setArticles(data.articles ?? []);
         setNote(data.note ?? "");
@@ -50,7 +56,11 @@ export function NewsCard() {
       </div>
       {status === "loading" && <p className="text-sm text-white/70">読み込み中...</p>}
       {status === "error" && (
-        <p className="text-sm text-red-100">{error}</p>
+        <p className="text-sm text-red-100">
+          {authNeeded
+            ? "Google連携後にニュースとキーワードが表示されます。"
+            : error}
+        </p>
       )}
       {status === "ready" && (
         <>
